@@ -1645,10 +1645,11 @@ impl Browser {
             return;
         };
         let (low, high) = mesh.bounds();
+        let unused = mesh.unused_vertices();
         ui.label(
             egui::RichText::new(format!(
                 "{} vertices · {} faces · {} part(s), {} textured · size {:.0} × {:.0} × {:.0} \
-                 (native units) · drag to turn",
+                 (native units){} · drag to turn",
                 mesh.vertex_count(),
                 mesh.face_count(),
                 mesh.submeshes.len(),
@@ -1656,6 +1657,11 @@ impl Browser {
                 high.0 - low.0,
                 high.1 - low.1,
                 high.2 - low.2,
+                if unused > 0 {
+                    format!(" · {unused} unused point(s) not drawn, kept in exports")
+                } else {
+                    String::new()
+                },
             ))
             .small(),
         );

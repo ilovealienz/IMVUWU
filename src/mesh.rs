@@ -121,14 +121,41 @@ impl StaticMesh {
         self.submeshes.iter().map(|s| s.faces.len()).sum()
     }
     /// Axis-aligned bounds of every vertex, in native units.
+    /// Bounds of the drawn geometry: only vertices that some face uses.
+    /// IMVU's legacy heads carry a loose eyebrow vertex at Z = 98214.5 that
+    /// no face references; counting it would shrink the preview to a dot.
+    /// (Falls back to every vertex for a mesh without faces.)
     pub fn bounds(&self) -> (V, V) {
         let mut low = V(f32::MAX, f32::MAX, f32::MAX);
         let mut high = V(f32::MIN, f32::MIN, f32::MIN);
-        for p in self.submeshes.iter().flat_map(|s| &s.positions) {
-            low = V(low.0.min(p.0), low.1.min(p.1), low.2.min(p.2));
-            high = V(high.0.max(p.0), high.1.max(p.1), high.2.max(p.2));
+        let used = self.submeshes.iter().any(|s| !s.faces.is_empty());
+        for s in &self.submeshes {
+            let points: Box<dyn Iterator<Item = &V>> = if used {
+                Box::new(s.faces.iter().flatten().filter_map(|&i| s.positions.get(i)))
+            } else {
+                Box::new(s.positions.iter())
+            };
+            for p in points {
+                low = V(low.0.min(p.0), low.1.min(p.1), low.2.min(p.2));
+                high = V(high.0.max(p.0), high.1.max(p.1), high.2.max(p.2));
+            }
         }
         (low, high)
+    }
+    /// Vertices no face references (kept in exports, not drawn).
+    pub fn unused_vertices(&self) -> usize {
+        self.submeshes
+            .iter()
+            .map(|s| {
+                let mut used = vec![false; s.positions.len()];
+                for &i in s.faces.iter().flatten() {
+                    if let Some(u) = used.get_mut(i) {
+                        *u = true;
+                    }
+                }
+                used.iter().filter(|u| !**u).count()
+            })
+            .sum()
     }
 }
 
@@ -542,6 +569,26 @@ pub fn render_preview(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn bounds_ignore_vertices_no_face_uses() {
+        let mesh = StaticMesh {
+            submeshes: vec![Submesh {
+                material: 0,
+                positions: vec![
+                    V(0.0, 0.0, 950.0),
+                    V(10.0, 0.0, 950.0),
+                    V(0.0, 10.0, 1150.0),
+                    V(0.0, 0.0, 98214.5), // the legacy eyebrow outlier
+                ],
+                normals: vec![V(0.0, 0.0, 1.0); 4],
+                uvs: vec![[0.0; 2]; 4],
+                faces: vec![[0, 1, 2]],
+            }],
+        };
+        let (low, high) = mesh.bounds();
+        assert_eq!((low.2, high.2), (950.0, 1150.0));
+        assert_eq!(mesh.unused_vertices(), 1);
+    }
     use super::*;
 
     const XMF: &str = r#"<HEADER MAGIC="XMF" VERSION="919"/>

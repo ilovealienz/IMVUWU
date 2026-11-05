@@ -1,0 +1,6 @@
+[toolchain]
+# Plain stable on every OS. On Windows, build.ps1 selects the open-source
+# host toolchain (stable-x86_64-pc-windows-gnullvm, linked by llvm-mingw).
+channel = "stable"
+profile = "minimal"
+components = ["clippy", "rustfmt"]

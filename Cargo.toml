@@ -1,0 +1,40 @@
+[package]
+name = "headmaker"
+version = "1.0.0"
+license = "MIT"
+edition = "2021"
+description = "Native Rust recovery of the Flash IMVU HeadMaker editors"
+
+[dependencies]
+# glow is the main renderer (the GPU preview uses OpenGL directly); wgpu is
+# the fallback for machines without a usable OpenGL driver. x11 and wayland
+# are the Linux window systems (they compile to nothing elsewhere).
+eframe = { version = "=0.31.1", default-features = false, features = ["default_fonts", "glow", "wgpu", "x11", "wayland"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "tga", "bmp", "dds"] }
+xmltree = "0.11"
+rfd = "0.15"
+# Packages tab: IMVU product/CDN requests over rustls (open-source TLS in
+# Rust with bundled Mozilla root certificates, so it behaves the same on
+# Windows, under Wine/Bottles and on Linux), JSON metadata, and Deflate for
+# ZIP/CHKN members (flate2 was already in the lock).
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+serde_json = "1"
+flate2 = "1"
+# eframe's wgpu, with the DirectX 12 backend turned on (eframe leaves it off;
+# Vulkan and OpenGL are always on). DX12 includes Windows' software adapter.
+wgpu = { version = "24", default-features = false, features = ["dx12", "wgsl"] }
+# Blocks on wgpu's adapter/device requests in the headless GPU check.
+pollster = "0.4"
+
+[features]
+# Embeds the developer's copies of IMVU base avatars 80/191 (assets/poser),
+# which are not in the public repository. Off by default: the app then
+# downloads the avatars from IMVU on first launch.
+default = []
+bundled-imvu-avatars = []
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true
+

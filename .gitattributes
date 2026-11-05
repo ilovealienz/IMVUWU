@@ -1,0 +1,5 @@
+# Keep every file byte-for-byte as committed, on every OS and whatever
+# core.autocrlf says: the template heads, presets and fixtures are embedded
+# into the exe and compared byte-for-byte by the tests, and IMVU files
+# (XMF/XPF/XAF/XSF) have their own line endings.
+* -text

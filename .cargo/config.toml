@@ -1,0 +1,12 @@
+[target.x86_64-pc-windows-gnu]
+rustflags = ["-C", "linker=rust-lld", "-C", "linker-flavor=ld.lld", "-C", "link-self-contained=yes"]
+
+# Static C runtime: the exe runs without the Visual C++ Redistributable.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+# Open-source toolchain (Rust gnullvm + llvm-mingw: clang, lld, mingw-w64).
+# Static libunwind; the C runtime is Windows' own UCRT, which ships with
+# Windows 10/11, so nothing else needs installing.
+[target.x86_64-pc-windows-gnullvm]
+rustflags = ["-C", "target-feature=+crt-static"]

@@ -1,6 +1,6 @@
 [package]
 name = "headmaker"
-version = "1.0.3"
+version = "1.0.4"
 license = "MIT"
 edition = "2021"
 description = "Native Rust recovery of the Flash IMVU HeadMaker editors"

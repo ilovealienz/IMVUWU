@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="71" height="30" viewBox="0 0 71 30" role="img" aria-labelledby="title">
+  <title id="title">Linux</title>
+  <g transform="translate(0 5)">
+    <g transform="scale(.78125)">
+      <path fill="#F3D7B3" stroke="#A87557" stroke-width="2.5"
+            d="M3 20 Q3.6 13 8 8 L12 5 Q19 1 25 8 Q29.8 13 29 21 L27 25 Q22 30 17 29.3 Q8 29 4 25Z"/>
+      <path fill="#2B201A" d="M4 20 Q3.6 12 8.8 8.4 L12.6 5.7 Q19.5 2 24.5 8.6 Q28.5 13 28 21 L25 17 Q21 9.9 17.5 13.4 Q14 9.7 10 14 Q7 17 5.5 24Z"/>
+      <path fill="none" stroke="#2B201A" stroke-width="3.1" stroke-linecap="round" d="M11.3 18.6l.3.7m10-2.3-.2.6"/>
+      <path fill="#E5A170" stroke="#2B201A" stroke-width="1" stroke-linejoin="round" d="M13.3 22.2 17.2 19.6 21.4 21.4 18 26Z"/>
+    </g>
+    <text x="31" y="12.5" dominant-baseline="central" fill="#946C54" font-family="Segoe UI, DejaVu Sans, sans-serif" font-size="14" font-weight="600">Linux</text>
+  </g>
+</svg>

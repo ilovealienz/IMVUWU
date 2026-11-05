@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="86" height="30" viewBox="0 0 86 30" role="img" aria-labelledby="title">
+  <title id="title">macOS</title>
+  <g transform="translate(0 5)">
+    <g transform="scale(.78125)">
+      <g fill="#E5A170" stroke="#79533D" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path fill="#F3D7B3" d="M16.2 8 Q13 5.7 13.4 2.9 Q16.4 .8 17.5 4.6 L18 6.5Z"/>
+        <path d="M16 11 Q13.2 7 8.8 9 L6.8 10.1 Q4.6 12 4.7 18 Q4.6 22 8.1 25.4 Q11.3 28.7 17.6 29 L21 28.4 Q28 27.6 27.2 23 Q27 20.8 22.5 19.2 Q19.8 15.4 24.9 13.1 Q23 9.6 20.7 9.9 Q18.9 9.1 16 12.3"/>
+      </g>
+    </g>
+    <text x="31" y="12.5" dominant-baseline="central" fill="#946C54" font-family="Segoe UI, DejaVu Sans, sans-serif" font-size="14" font-weight="600">macOS</text>
+  </g>
+</svg>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="132" height="40" viewBox="0 0 132 40" role="img" aria-labelledby="label">
+  <title id="label">Download</title>
+  <path d="M12 3 Q66 1 119 3 Q129 3 129 13 L128 28 Q128 37 117 37 Q66 39 13 37 Q3 36 3 28 L2.5 13 Q2 4 12 3Z" fill="#E5A170" stroke="#79533D" stroke-width="2.6"/>
+  <path d="M21 10q-1 7 0 13m-5-5 5 5 5-5m-12 7v4q8 1 15 0v-4" fill="none" stroke="#2B201A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="none" stroke="#2B201A" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round">
+    <path transform="translate(38.55 13.91) rotate(-3.3) scale(1.39)" d="M.4 8 .3 .5 Q5 -.4 5 4 Q5 8.5 .4 8"/>
+    <path transform="translate(48.98 14.50) rotate(1.65) scale(1.32)" d="M2.7 .4 Q.2 .2 .3 4 Q0 8.1 2.5 8 Q5 8.2 5 4 Q5 .3 2.7 .4Z"/>
+    <path transform="translate(58.75 13.62) rotate(-1.1) scale(1.41)" d="M0 .3 Q.3 6 1.5 8 L3.3 4.4 4.7 7.8 Q5.9 5.4 6.6 .4"/>
+    <path transform="translate(71.40 14.14) rotate(2.75) scale(1.36)" d="M.4 8 .6 .4 5 7.8 5.2 .4"/>
+    <path transform="translate(81.06 14.91) rotate(0) scale(1.29)" d="M.5 .5 .7 8 5 7.5"/>
+    <path transform="translate(90.11 14.06) rotate(-3.3) scale(1.37)" d="M2.7 .4 Q.2 .2 .3 4 Q0 8.1 2.5 8 Q5 8.2 5 4 Q5 .3 2.7 .4Z"/>
+    <path transform="translate(100.97 13.61) rotate(1.65) scale(1.4)" d="M0 8 2.5 0 5 8 M1 5 4 5"/>
+    <path transform="translate(110.57 14.19) rotate(-1.1) scale(1.34)" d="M.4 8 .3 .5 Q5 -.4 5 4 Q5 8.5 .4 8"/>
+  </g>
+</svg>

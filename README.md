@@ -1,18 +1,22 @@
 <div align="center">
   <img src="assets/readme-banner.svg" alt="IMVUWU. Creator tools for IMVU. The Deliverance Flash tools, rebuilt in Rust." width="560">
-
-  <p>Windows · Linux · macOS</p>
+  <br>
   <p>
-    <a href="https://github.com/ilovealienz/IMVUWU/releases/latest"><strong>Download IMVUWU</strong></a> ·
-    <a href="#creator-tools">Creator tools</a> ·
-    <a href="#build-from-source">Build from source</a>
+    <img src="assets/readme-windows.svg" alt="Windows" width="95" height="30">
+    <img src="assets/readme-linux.svg" alt="Linux" width="71" height="30">
+    <img src="assets/readme-macos.svg" alt="macOS" width="86" height="30">
+  </p>
+  <p>
+    <a href="https://github.com/ilovealienz/IMVUWU/releases/latest"><img src="assets/readme-download.svg" alt="Download" width="132" height="40"></a>
+    <a href="#creator-tools"><img src="assets/readme-tools.svg" alt="Creator tools" width="181" height="40"></a>
+    <a href="#build-from-source"><img src="assets/readme-build.svg" alt="Build from source" width="213" height="40"></a>
   </p>
 </div>
 
 <p align="center">
   <img src="assets/facemaker-preview.png" alt="IMVUWU FaceMaker showing a wide grin in the 3D expression preview, with facial controls on the left." width="100%">
   <br>
-  <em>FaceMaker’s expression editor and 3D preview.</em>
+  <em>expression editor</em>
 </p>
 
 ## Creator tools

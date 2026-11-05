@@ -1,56 +1,77 @@
-# IMVUWU
+<div align="center">
+  <img src="assets/icon.svg" alt="IMVUWU logo" width="144" height="144">
 
-Creator tools for IMVU, in one native app for Windows, Linux and macOS:
+  <h1>IMVUWU</h1>
 
-- **Packages:** look up an IMVU product by ID or shop link. Browse its files and revisions, preview images and 3D meshes, and download everything (CHKN, ZIP or images with fixed names). Meshes export to OBJ with a one-click `Make blend` launcher for Blender.
-- **HeadMaker:** edit XMF heads (morphs, symmetry, neck repair).
-- **FaceMaker:** make XPF facial expressions.
-- **Avatar Poser:** pose one or two avatars and export XAF.
+  <p><strong>IMVU creator tools that recreate the original Deliverance Flash tools in Rust for modern systems.</strong></p>
+  <p>Windows · Linux · macOS</p>
+  <p>
+    <a href="https://github.com/ilovealienz/IMVUWU/releases/latest"><strong>Download IMVUWU</strong></a> ·
+    <a href="#creator-tools">Creator tools</a> ·
+    <a href="#build-from-source">Build from source</a>
+  </p>
+</div>
 
-IMVUWU is a fan-made tool. It is not made by or affiliated with IMVU. It uses only IMVU's public product data and never asks for a login.
+## Creator tools
+
+| Tool | What you can do |
+| --- | --- |
+| **Packages** | Look up products by ID or shop link. Browse files and revisions, preview images and 3D meshes, and download CHKN, ZIP or images with restored filenames. Export meshes to OBJ or use **Make blend** to create a Blender file with Blender installed. |
+| **HeadMaker** | Edit XMF heads with morph controls, symmetry and neck repair. |
+| **FaceMaker** | Create and export XPF facial expressions. |
+| **Avatar Poser** | Pose one or two avatars and export XAF. |
+
+IMVUWU is a fan-made project independent of IMVU. It uses public product data and requires no IMVU account or login.
 
 ## Download
 
-Get the latest build from the **Releases** page:
+Choose your platform on the [Releases page](https://github.com/ilovealienz/IMVUWU/releases).
 
-| System | File | Run it |
-|---|---|---|
-| Windows 10/11 | `IMVUWU-<version>-windows-x86_64.exe` | Double-click. Windows SmartScreen may warn about an unsigned download: choose *More info › Run anyway*. |
-| Linux (x86_64, glibc 2.28+) | `IMVUWU-<version>-linux-x86_64.tar.gz` | Unpack it, then run `./IMVUWU`. |
-| macOS (Apple Silicon) | `IMVUWU-<version>-macos-arm64.tar.gz` | Unpack it and open `IMVUWU`. It's unsigned, so macOS blocks it the first time: allow it in *System Settings › Privacy & Security › Open Anyway*, or run `xattr -d com.apple.quarantine IMVUWU` once in Terminal. |
+| Platform | Download | Launch |
+| --- | --- | --- |
+| **Windows 10/11** (x86-64) | `IMVUWU-<version>-windows-x86_64.exe` | Open the executable. Windows SmartScreen may flag the unsigned build. |
+| **Linux** (x86-64, glibc 2.28+) | `IMVUWU-<version>-linux-x86_64.tar.gz` | Extract the archive and run `./IMVUWU`. |
+| **macOS** (Apple Silicon) | `IMVUWU-<version>-macos-arm64.tar.gz` | Extract the archive and open `IMVUWU`. macOS may ask you to approve the unsigned build in **System Settings › Privacy & Security**. |
 
-Nothing else needs installing. On first launch IMVUWU downloads IMVU's base avatars (female product 80 with its default skin, and male product 191) from IMVU's public servers. Settings and the downloaded avatars are stored in:
-- `%APPDATA%\IMVUWU` on Windows
-- `~/.local/share/IMVUWU` on Linux
-- `~/Library/Application Support/IMVUWU` on macOS
+### First launch
 
-**Graphics:** the 3D views use the GPU through wgpu (DirectX 12, Vulkan, Metal or OpenGL). They also run on a PC without a graphics driver, using Windows' software renderer, with OpenGL as a fallback.
+IMVUWU downloads the base female avatar (product **80**, with its default skin) and male avatar (product **191**) from IMVU's public servers. It stores the avatars and settings in the following folders.
 
-**Linux:** the binary uses the desktop's own OpenGL/Vulkan, Wayland/X11 and file-picker service. On NixOS, use the flake (below).
+| Platform | Data folder |
+| --- | --- |
+| Windows | `%APPDATA%\IMVUWU` |
+| Linux | `~/.local/share/IMVUWU` |
+| macOS | `~/Library/Application Support/IMVUWU` |
 
-## Build
+The 3D previews use **wgpu** with DirectX 12, Vulkan, Metal or OpenGL. Windows also supports software rendering and an OpenGL fallback. Linux uses your desktop's graphics stack (OpenGL or Vulkan), Wayland or X11, and file picker service. NixOS users can build with the included flake.
 
-All three need [Rust](https://rustup.rs).
+## Build from source
 
-- **Windows:** `.\build.ps1`. It uses only open-source tools: Rust's `gnullvm` toolchain and llvm-mingw, which it downloads and checksums itself. No Visual Studio is needed. It also cross-builds the Linux executable with Zig; `-NoLinux` skips that. `.\build.ps1 -Test` runs the tests and clippy.
-- **Linux / macOS:** `./build.sh`, or `./build.sh test` for the tests.
-- **NixOS:** `nix build`, then `./result/bin/imvuwu`. `nix develop` gives a development shell.
+Install [Rust](https://rustup.rs/), then run the command for your platform from the repository root.
 
-GitHub Actions builds and tests all three systems on every push. It also runs each download's built-in render checks on its own system. A `v*` tag publishes a release with the three downloads.
+| Platform | Build | Test or develop |
+| --- | --- | --- |
+| Windows | `.\build.ps1` | `.\build.ps1 -Test` runs tests and Clippy. Add `-NoLinux` to skip the Linux cross-build. |
+| Linux / macOS | `./build.sh` | `./build.sh test` |
+| NixOS | `nix build`, then `./result/bin/imvuwu` | `nix develop` opens a development shell. |
 
-**IMVU files are not included.** IMVU's own files are not part of this repository. The build that embeds the developer's copies of the base avatars (feature `bundled-imvu-avatars`) and a few tests that need IMVU head meshes only work in the developer's own checkout. Everything else builds and tests here.
+The Windows script uses Rust's `gnullvm` toolchain and a checksum-verified llvm-mingw download. It cross-builds for Linux with Zig. Visual Studio is optional.
 
-### Diagnostics
+[GitHub Actions](.github/workflows/build.yml) builds and tests Windows, Linux and macOS and runs rendering checks for each platform. Pushing a `v*` tag publishes the three release downloads.
+
+The public builds fetch base avatars at runtime. The optional `bundled-imvu-avatars` build and tests that require local IMVU head meshes use developer-supplied assets.
+
+## Diagnostics
 
 | Command | What it does |
-|---|---|
-| `--software-gpu` | Runs on the software graphics adapter, to test a PC without a graphics driver. |
-| `--wgpu-render-check <folder> [--software]` | Renders the 3D check scenes without a window. |
-| `--renderer wgpu\|glow\|glow-basic` | Picks the renderer. |
-| `--imvu-check <report>` | Live check of the IMVU lookups. |
+| --- | --- |
+| `--software-gpu` | Runs with a software graphics adapter. |
+| `--wgpu-render-check <folder> [--software]` | Renders diagnostic scenes to a folder without opening a window. |
+| `--renderer wgpu\|glow\|glow-basic` | Selects the renderer. |
+| `--imvu-check <report>` | Checks live IMVU product lookups and writes a report. |
 
-If the app can't start, it shows why and writes `startup-log.txt` in its data folder.
+If startup fails, look for `startup-log.txt` in the data folder listed above.
 
 ## Licence
 
-MIT. See [LICENSE](LICENSE). IMVU and its content belong to IMVU; none of it is included here.
+IMVUWU's code is distributed under the [MIT Licence](LICENSE). IMVU and its content belong to their respective owners.

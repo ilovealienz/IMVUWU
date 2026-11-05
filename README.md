@@ -10,7 +10,7 @@
 </div>
 
 <p align="center">
-  <img src="assets/facemaker-preview.png" alt="IMVUWU FaceMaker showing a wide grin in the 3D expression preview, with facial controls on the left." width="85%">
+  <img src="assets/facemaker-preview.png" alt="IMVUWU FaceMaker showing a wide grin in the 3D expression preview, with facial controls on the left." width="100%">
   <br>
   <em>FaceMaker’s expression editor and 3D preview.</em>
 </p>

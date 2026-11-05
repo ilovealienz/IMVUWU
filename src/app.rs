@@ -115,6 +115,9 @@ impl EditorApp {
         let mut browser = crate::browser::Browser::default();
         let settings = crate::settings::Settings::load();
         crate::shortcuts::set_keymap(&settings.shortcuts);
+        // System fonts as fallbacks for scripts the bundled fonts lack
+        // (Japanese, Korean, Thai, decorative symbols...), in the background.
+        crate::fonts::install_system_fallbacks(&cc.egui_ctx);
         let mut workspace = settings.start_workspace.workspace();
         if let Some(i) = args.iter().position(|a| a == "--packages") {
             workspace = 3;

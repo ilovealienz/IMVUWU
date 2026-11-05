@@ -7,6 +7,7 @@ mod app;
 mod avatars;
 mod browser;
 mod cmf;
+mod fonts;
 mod gizmo;
 mod gpu;
 mod gpu_wgpu;
@@ -811,6 +812,16 @@ fn main() -> eframe::Result {
     if args.get(1).is_some_and(|s| s == "--render-check") {
         render::render_check(args.get(2).map(String::as_str).unwrap_or("analysis"))
             .expect("Render check failed");
+        return Ok(());
+    }
+    // `--font-report <file>`: which system fonts the app would use as
+    // fallbacks for scripts and symbols its bundled fonts lack.
+    if args.get(1).is_some_and(|s| s == "--font-report") {
+        let report = fonts::report();
+        match args.get(2) {
+            Some(path) => std::fs::write(path, &report).expect("Write font report"),
+            None => print!("{report}"),
+        }
         return Ok(());
     }
     // `--wgpu-render-check <folder> [--software]`: the wgpu preview, headless.

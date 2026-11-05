@@ -234,3 +234,77 @@ pub fn primary(label: &str) -> egui::Button<'_> {
         .fill(ACCENT)
         .stroke(Stroke::NONE)
 }
+
+#[cfg(test)]
+mod glyph_tests {
+    use eframe::egui;
+
+    /// Every non-ASCII character in a string literal in src/*.rs (written
+    /// directly or as `\u{..}`), with where it is.
+    fn ui_characters() -> Vec<(char, String)> {
+        let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut found = Vec::new();
+        for entry in std::fs::read_dir(src).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().is_none_or(|e| e != "rs") {
+                continue;
+            }
+            let text = std::fs::read_to_string(&path).unwrap();
+            let file = path.file_name().unwrap().to_string_lossy().into_owned();
+            for (n, line) in text.lines().enumerate() {
+                if line.trim_start().starts_with("//") {
+                    continue;
+                }
+                let mut in_string = false;
+                let mut chars = line.chars().peekable();
+                while let Some(c) = chars.next() {
+                    match c {
+                        '"' => in_string = !in_string,
+                        '\\' if in_string => {
+                            if chars.peek() == Some(&'u') {
+                                chars.next();
+                                let hex: String = chars
+                                    .by_ref()
+                                    .skip_while(|&c| c == '{')
+                                    .take_while(|&c| c != '}')
+                                    .collect();
+                                if let Some(c) =
+                                    u32::from_str_radix(&hex, 16).ok().and_then(char::from_u32)
+                                {
+                                    found.push((c, format!("{file}:{}", n + 1)));
+                                }
+                            } else {
+                                chars.next();
+                            }
+                        }
+                        c if in_string && !c.is_ascii() => {
+                            found.push((c, format!("{file}:{}", n + 1)));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        found
+    }
+
+    /// The built-in fonts have no fallback for a missing character; it is
+    /// drawn as an empty box. Every symbol shown in the UI must exist.
+    #[test]
+    fn every_ui_character_is_in_the_bundled_fonts() {
+        let ctx = egui::Context::default();
+        let _ = ctx.run(Default::default(), |_| {});
+        let font = egui::FontId::proportional(14.0);
+        let chars = ui_characters();
+        assert!(
+            chars.iter().any(|(c, _)| *c == '\u{2026}'),
+            "scanner found nothing"
+        );
+        let missing: Vec<String> = chars
+            .iter()
+            .filter(|(c, _)| !ctx.fonts(|f| f.has_glyph(&font, *c)))
+            .map(|(c, at)| format!("U+{:04X} '{c}' at {at}", *c as u32))
+            .collect();
+        assert!(missing.is_empty(), "drawn as boxes: {missing:?}");
+    }
+}

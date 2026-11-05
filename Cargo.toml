@@ -1,6 +1,6 @@
 [package]
 name = "headmaker"
-version = "1.0.1"
+version = "1.0.2"
 license = "MIT"
 edition = "2021"
 description = "Native Rust recovery of the Flash IMVU HeadMaker editors"
@@ -25,6 +25,12 @@ flate2 = "1"
 wgpu = { version = "24", default-features = false, features = ["dx12", "wgsl"] }
 # Blocks on wgpu's adapter/device requests in the headless GPU check.
 pollster = "0.4"
+# Finds installed system fonts (Windows/macOS font folders, Linux and NixOS
+# via fontconfig's configuration) to use as fallbacks for scripts and
+# symbols egui's bundled fonts lack. Pure Rust, MIT.
+fontdb = "0.24"
+# Checks a face has outlines for a character (already used by egui).
+ttf-parser = "0.25"
 
 [features]
 # Embeds the developer's copies of IMVU base avatars 80/191 (assets/poser),

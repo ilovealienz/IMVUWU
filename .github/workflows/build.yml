@@ -31,6 +31,8 @@ jobs:
           $p = Start-Process $exe -ArgumentList '--wgpu-render-check', 'smoke/gpu', '--software' -Wait -PassThru
           Get-Content smoke/gpu/report.txt, smoke/gpu/ERROR.txt -ErrorAction SilentlyContinue
           if (-not (Test-Path smoke/gpu/report.txt) -or (Test-Path smoke/gpu/ERROR.txt)) { throw 'GPU check failed' }
+          $p = Start-Process $exe -ArgumentList '--font-report', 'smoke/fonts.txt' -Wait -PassThru
+          Get-Content smoke/fonts.txt -Encoding UTF8
       - name: Name the downloads
         shell: pwsh
         run: |
@@ -67,6 +69,7 @@ jobs:
           ./run/IMVUWU --wgpu-render-check smoke/gpu --software
           cat smoke/gpu/report.txt smoke/gpu/ERROR.txt 2>/dev/null || true
           test -f smoke/gpu/report.txt && test ! -f smoke/gpu/ERROR.txt
+          ./run/IMVUWU --font-report
 
   # macOS tests, the macOS (Apple Silicon) download and its checks (Metal).
   macos:
@@ -85,6 +88,7 @@ jobs:
           "$app" --wgpu-render-check smoke/gpu
           cat smoke/gpu/report.txt smoke/gpu/ERROR.txt 2>/dev/null || true
           test -f smoke/gpu/report.txt && test ! -f smoke/gpu/ERROR.txt
+          "$app" --font-report
       - name: Name the download
         run: |
           mkdir upload

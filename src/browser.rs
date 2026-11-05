@@ -104,6 +104,55 @@ enum PreviewContent {
 }
 
 /// Is this file a Cal3D mesh (binary CMF or XMF text)?
+/// Columns the file list can be sorted by (click a heading).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum SortBy {
+    Name,
+    Type,
+    Size,
+}
+
+/// What the details pane's header buttons asked for.
+enum HeaderAction {
+    /// Save the file: `None` keeps the stored name, `Some` uses that one.
+    Save(Option<String>),
+    ExportObj(crate::mesh::ObjMode),
+}
+
+/// The Type column's text for a file (also its sort key).
+fn type_text(file: &package::PackageFile) -> String {
+    match (&file.kind, &file.bytes) {
+        (_, Err(e)) => e.clone(),
+        (Some(k), _) => k.label(),
+        (None, _) => String::new(),
+    }
+}
+
+/// File indices in display order for `sort`.
+fn sorted_files(files: &[package::PackageFile], sort: Option<(SortBy, bool)>) -> Vec<usize> {
+    let mut order: Vec<usize> = (0..files.len()).collect();
+    let Some((by, descending)) = sort else {
+        return order;
+    };
+    let name = |i: usize| files[i].name.to_lowercase();
+    order.sort_by(|&a, &b| {
+        let primary = match by {
+            SortBy::Name => name(a).cmp(&name(b)),
+            SortBy::Type => type_text(&files[a])
+                .to_lowercase()
+                .cmp(&type_text(&files[b]).to_lowercase()),
+            SortBy::Size => files[a].size().cmp(&files[b].size()),
+        };
+        let primary = if descending {
+            primary.reverse()
+        } else {
+            primary
+        };
+        primary.then_with(|| name(a).cmp(&name(b)))
+    });
+    order
+}
+
 fn is_mesh(kind: &Kind, bytes: &[u8]) -> bool {
     match kind {
         Kind::Cal3d(label, _) => label.starts_with("CMF"),
@@ -139,6 +188,8 @@ pub struct Browser {
     references: Option<((u64, u64), Vec<package::Reference>)>,
     selected: Option<usize>,
     selected_file: Option<usize>,
+    /// File list order: a column and descending?, or the package's order.
+    sort: Option<(SortBy, bool)>,
     preview: Option<Preview>,
     status: String,
     /// Set by `--packages <id>`; looked up on the first frame.
@@ -170,6 +221,7 @@ impl Default for Browser {
             references: None,
             selected: None,
             selected_file: None,
+            sort: None,
             preview: None,
             status: "Enter a product ID or shop link, or open a local ZIP, CHKN or folder.".into(),
             initial_lookup: None,
@@ -929,7 +981,7 @@ impl Browser {
                     let label = if busy {
                         format!("rev {revision} …")
                     } else if open {
-                        format!("rev {revision} ✓")
+                        format!("rev {revision} ✔")
                     } else {
                         format!("rev {revision}")
                     };
@@ -1325,21 +1377,47 @@ impl Browser {
 
     fn file_list(&mut self, ui: &mut egui::Ui, index: usize) {
         let mut choose = None;
+        let mut new_sort = None;
         egui::Grid::new("files_grid")
             .striped(true)
             .num_columns(3)
             .spacing(Vec2::new(10.0, 3.0))
             .show(ui, |ui| {
-                for header in ["Name", "Type", "Size"] {
-                    ui.label(
-                        egui::RichText::new(header)
+                for (by, header) in [
+                    (SortBy::Name, "Name"),
+                    (SortBy::Type, "Type"),
+                    (SortBy::Size, "Size"),
+                ] {
+                    let active = self.sort.filter(|(b, _)| *b == by);
+                    let text = match active {
+                        Some((_, false)) => format!("{header} \u{23f6}"),
+                        Some((_, true)) => format!("{header} \u{23f7}"),
+                        None => header.to_string(),
+                    };
+                    let label =
+                        egui::RichText::new(text)
                             .small()
                             .strong()
-                            .color(theme::MUTED),
-                    );
+                            .color(if active.is_some() {
+                                theme::ACCENT
+                            } else {
+                                theme::MUTED
+                            });
+                    let response = ui
+                        .add(egui::Label::new(label).sense(egui::Sense::click()))
+                        .on_hover_cursor(egui::CursorIcon::PointingHand)
+                        .on_hover_text("Click to sort; click again to reverse");
+                    if response.clicked() {
+                        new_sort = Some(match active {
+                            Some((_, descending)) => (by, !descending),
+                            None => (by, by == SortBy::Size),
+                        });
+                    }
                 }
                 ui.end_row();
-                for (i, file) in self.packages[index].files.iter().enumerate() {
+                let files = &self.packages[index].files;
+                for i in sorted_files(files, self.sort) {
+                    let file = &files[i];
                     let mut name = egui::RichText::new(&file.name);
                     if file.bytes.is_err() {
                         name = name.color(theme::RED);
@@ -1350,11 +1428,7 @@ impl Browser {
                     {
                         choose = Some(i);
                     }
-                    let kind = match (&file.kind, &file.bytes) {
-                        (_, Err(e)) => e.clone(),
-                        (Some(k), _) => k.label(),
-                        (None, _) => String::new(),
-                    };
+                    let kind = type_text(file);
                     // Note images whose name says another format. This is
                     // normal on IMVU (base avatar .tga textures are JPEGs),
                     // so it is information, not a warning.
@@ -1392,14 +1466,19 @@ impl Browser {
             self.selected_file = Some(i);
             self.preview = None;
         }
+        if new_sort.is_some() {
+            self.sort = new_sort;
+        }
     }
 
     fn preview_pane(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, index: usize) {
         let Some(file_index) = self.selected_file else {
             return;
         };
-        if let Some(name) = self.file_header(ui, index, file_index) {
-            self.save_selected_file(index, name);
+        match self.file_header(ui, index, file_index) {
+            Some(HeaderAction::Save(name)) => self.save_selected_file(index, name),
+            Some(HeaderAction::ExportObj(mode)) => self.export_obj(index, file_index, mode),
+            None => {}
         }
         let Some(file) = self.packages[index].files.get(file_index) else {
             return;
@@ -1616,18 +1695,11 @@ impl Browser {
             }
             PreviewContent::Mesh { .. } => {}
         }
-        self.mesh_preview(ui, ctx, index, file_index);
+        self.mesh_preview(ui, ctx);
     }
 
-    /// Draws the turnable mesh preview and its export buttons.
-    fn mesh_preview(
-        &mut self,
-        ui: &mut egui::Ui,
-        ctx: &egui::Context,
-        index: usize,
-        file_index: usize,
-    ) {
-        let mut export = None;
+    /// Draws the turnable mesh preview (its OBJ exports are in the header).
+    fn mesh_preview(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         let Some(Preview {
             content:
                 PreviewContent::Mesh {
@@ -1665,29 +1737,6 @@ impl Browser {
             ))
             .small(),
         );
-        ui.horizontal(|ui| {
-            if ui
-                .button("Export OBJ for Blender…")
-                .on_hover_text(
-                    "Scaled ×0.01 and turned Y-up, so Blender's default OBJ import places it \
-                     exactly like the .blend helper. Textures copied with extensions that \
-                     match their contents.",
-                )
-                .clicked()
-            {
-                export = Some(crate::mesh::ObjMode::Blender);
-            }
-            if ui
-                .button("Export OBJ unmodified…")
-                .on_hover_text(
-                    "IMVU's native coordinates exactly as in the file (Z-up, unscaled). \
-                     Textures copied with their original names.",
-                )
-                .clicked()
-            {
-                export = Some(crate::mesh::ObjMode::Unmodified);
-            }
-        });
         let available = ui.available_size();
         let side = available.x.min(available.y).clamp(120.0, 640.0);
         let (rect, response) = ui.allocate_exact_size(Vec2::splat(side), egui::Sense::drag());
@@ -1716,9 +1765,6 @@ impl Browser {
                 egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
                 Color32::WHITE,
             );
-        }
-        if let Some(mode) = export {
-            self.export_obj(index, file_index, mode);
         }
     }
 
@@ -1824,47 +1870,86 @@ impl Browser {
         ui: &mut egui::Ui,
         index: usize,
         file_index: usize,
-    ) -> Option<Option<String>> {
+    ) -> Option<HeaderAction> {
         let file = self.packages[index].files.get(file_index)?;
         let available = file.bytes.is_ok();
+        let mesh = match (&file.kind, &file.bytes) {
+            (Some(kind), Ok(bytes)) => is_mesh(kind, bytes),
+            _ => false,
+        };
         let fixed = file
             .extension_mismatch()
             .and(file.corrected_name())
             .map(|n| n.rsplit('/').next().unwrap_or(&n).to_string());
         let mut choice = None;
+        // One Download button whose menu lists every way to save this file,
+        // with the file name below it.
         ui.horizontal_top(|ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
-                if let Some(name) = &fixed {
-                    let ext = name.rsplit('.').next().unwrap_or_default();
-                    if ui
-                        .add_enabled(available, egui::Button::new(format!("As .{ext}")))
-                        .on_hover_text(format!(
-                            "Save a copy named {name}, for programs that go by extension"
-                        ))
-                        .clicked()
-                    {
-                        choice = Some(Some(name.clone()));
-                    }
-                }
-                if ui
-                    .add_enabled(available, theme::primary("Download"))
-                    .on_hover_text("Save this file unchanged, with its stored name")
-                    .clicked()
-                {
-                    choice = Some(None);
-                }
-                ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-                    ui.add(
-                        egui::Label::new(
-                            egui::RichText::new(&file.name)
-                                .strong()
-                                .color(theme::FG_BRIGHT),
-                        )
-                        .wrap(),
-                    );
+                ui.add_enabled_ui(available, |ui| {
+                    egui::menu::menu_custom_button(ui, theme::primary("Download \u{23f7}"), |ui| {
+                        if ui
+                            .button("Original file")
+                            .on_hover_text("Save this file unchanged, with its stored name")
+                            .clicked()
+                        {
+                            choice = Some(HeaderAction::Save(None));
+                            ui.close_menu();
+                        }
+                        if let Some(name) = &fixed {
+                            let ext = name.rsplit('.').next().unwrap_or_default();
+                            if ui
+                                .button(format!("As .{ext}"))
+                                .on_hover_text(format!(
+                                    "Save a copy named {name}, for programs that go by extension"
+                                ))
+                                .clicked()
+                            {
+                                choice = Some(HeaderAction::Save(Some(name.clone())));
+                                ui.close_menu();
+                            }
+                        }
+                        if mesh {
+                            ui.separator();
+                            if ui
+                                .button("OBJ for Blender\u{2026}")
+                                .on_hover_text(
+                                    "Export as OBJ scaled \u{d7}0.01 and turned Y-up, with \
+                                     textures and a Make blend launcher that opens it in Blender.",
+                                )
+                                .clicked()
+                            {
+                                choice =
+                                    Some(HeaderAction::ExportObj(crate::mesh::ObjMode::Blender));
+                                ui.close_menu();
+                            }
+                            if ui
+                                .button("OBJ unmodified\u{2026}")
+                                .on_hover_text(
+                                    "Export as OBJ in IMVU's native coordinates, exactly as in \
+                                     the file (Z-up, unscaled). Textures keep their names.",
+                                )
+                                .clicked()
+                            {
+                                choice =
+                                    Some(HeaderAction::ExportObj(crate::mesh::ObjMode::Unmodified));
+                                ui.close_menu();
+                            }
+                        }
+                    })
+                    .response
+                    .on_hover_text("Choose how to save this file");
                 });
             });
         });
+        ui.add(
+            egui::Label::new(
+                egui::RichText::new(&file.name)
+                    .strong()
+                    .color(theme::FG_BRIGHT),
+            )
+            .wrap(),
+        );
         choice
     }
 
@@ -1919,7 +2004,7 @@ impl Browser {
                 renamed.len(),
                 renamed
                     .iter()
-                    .map(|(from, to)| format!("{} → {}", display_name(from), display_name(to)))
+                    .map(|(from, to)| format!("{} ➡ {}", display_name(from), display_name(to)))
                     .collect::<Vec<_>>()
                     .join(", "),
                 if unverifiable.is_empty() {
@@ -2004,6 +2089,35 @@ impl Browser {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn file_list_sorts_by_name_type_and_size() {
+        let file =
+            |name: &str, len: usize| package::PackageFile::new(name.into(), Ok(vec![b'x'; len]));
+        let files = vec![file("b.png", 30), file("A.xml", 10), file("c.png", 20)];
+        assert_eq!(sorted_files(&files, None), vec![0, 1, 2]);
+        // Name ignores case.
+        assert_eq!(
+            sorted_files(&files, Some((SortBy::Name, false))),
+            vec![1, 0, 2]
+        );
+        assert_eq!(
+            sorted_files(&files, Some((SortBy::Name, true))),
+            vec![2, 0, 1]
+        );
+        assert_eq!(
+            sorted_files(&files, Some((SortBy::Size, false))),
+            vec![1, 2, 0]
+        );
+        assert_eq!(
+            sorted_files(&files, Some((SortBy::Size, true))),
+            vec![0, 2, 1]
+        );
+        // Equal types fall back to name order.
+        let types = sorted_files(&files, Some((SortBy::Type, false)));
+        let pos = |i| types.iter().position(|&t| t == i).unwrap();
+        assert!(pos(0) < pos(2));
+    }
 
     #[test]
     fn thumbnails_only_come_from_imvu_hosts() {

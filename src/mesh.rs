@@ -14,7 +14,15 @@ pub struct Submesh {
     pub normals: Vec<V>,
     pub uvs: Vec<[f32; 2]>,
     pub faces: Vec<[usize; 3]>,
+    /// Morph targets by name: the vertices each one moves (vertex id, its
+    /// position in the target, and its normal there when the file has one).
+    pub morphs: std::collections::BTreeMap<String, Vec<(usize, V, Option<V>)>>,
 }
+
+/// The morph IMVU draws a head with by default: the creator's face shape.
+/// HeadMaker-made heads keep a template in the base mesh and the actual
+/// head only in this morph.
+pub const FACE_AVERAGE: &str = "Face.Average";
 
 #[derive(Clone, Debug)]
 pub struct StaticMesh {
@@ -100,12 +108,34 @@ impl StaticMesh {
                 }
                 faces.push(face);
             }
+            let mut morphs = std::collections::BTreeMap::<String, Vec<_>>::new();
+            for m in elements(&sm, "MORPH") {
+                let Some(name) = m.attributes.get("NAME") else {
+                    continue;
+                };
+                let blend = morphs.entry(name.clone()).or_default();
+                for b in elements(&m, "BLENDVERTEX") {
+                    let id: usize = b
+                        .attributes
+                        .get("VERTEXID")
+                        .and_then(|v| v.parse().ok())
+                        .ok_or("morph vertex without a valid VERTEXID")?;
+                    if id >= positions.len() {
+                        return Err("morph vertex outside its submesh".into());
+                    }
+                    let p = floats::<3>(b.get_child("POSITION").and_then(|e| e.get_text()))
+                        .ok_or("morph vertex without a valid POSITION")?;
+                    let n = floats::<3>(b.get_child("NORMAL").and_then(|e| e.get_text()));
+                    blend.push((id, V(p[0], p[1], p[2]), n.map(|n| V(n[0], n[1], n[2]))));
+                }
+            }
             submeshes.push(Submesh {
                 material,
                 positions,
                 normals,
                 uvs,
                 faces,
+                morphs,
             });
         }
         if submeshes.iter().all(|s| s.positions.is_empty()) {
@@ -114,6 +144,65 @@ impl StaticMesh {
         Ok(Self { submeshes })
     }
 
+    /// Does any submesh have this morph?
+    pub fn has_morph(&self, name: &str) -> bool {
+        self.submeshes.iter().any(|s| s.morphs.contains_key(name))
+    }
+    /// Number of distinct morph names.
+    pub fn morph_count(&self) -> usize {
+        let names: std::collections::BTreeSet<&String> =
+            self.submeshes.iter().flat_map(|s| s.morphs.keys()).collect();
+        names.len()
+    }
+    /// The mesh as IMVU draws it: Face.Average (when `face_average` is set,
+    /// the mesh has it and `weights` doesn't weight it itself) replaces the
+    /// base shape, then each weighted morph adds weight × (target − base).
+    /// This is the blend FaceMaker previews (`xpf::Animation::blend`). The
+    /// result has no morphs of its own.
+    pub fn posed(&self, face_average: bool, weights: &[(String, f32)]) -> StaticMesh {
+        let start = face_average && !weights.iter().any(|(n, _)| n == FACE_AVERAGE);
+        let submeshes = self
+            .submeshes
+            .iter()
+            .map(|sm| {
+                let mut positions = sm.positions.clone();
+                let mut normals = sm.normals.clone();
+                if start {
+                    for &(i, p, n) in sm.morphs.get(FACE_AVERAGE).into_iter().flatten() {
+                        positions[i] = p;
+                        if let Some(n) = n {
+                            normals[i] = n;
+                        }
+                    }
+                }
+                for (name, weight) in weights {
+                    if *weight == 0.0 {
+                        continue;
+                    }
+                    for &(i, p, n) in sm.morphs.get(name).into_iter().flatten() {
+                        positions[i] = positions[i].add(p.sub(sm.positions[i]).mul(*weight));
+                        if let (Some(n), Some(base)) = (n, sm.normals.get(i)) {
+                            normals[i] = normals[i].add(n.sub(*base).mul(*weight));
+                        }
+                    }
+                }
+                for n in &mut normals {
+                    if n.len() > 1e-6 {
+                        *n = n.normal();
+                    }
+                }
+                Submesh {
+                    material: sm.material,
+                    positions,
+                    normals,
+                    uvs: sm.uvs.clone(),
+                    faces: sm.faces.clone(),
+                    morphs: Default::default(),
+                }
+            })
+            .collect();
+        StaticMesh { submeshes }
+    }
     pub fn vertex_count(&self) -> usize {
         self.submeshes.iter().map(|s| s.positions.len()).sum()
     }
@@ -583,11 +672,41 @@ mod tests {
                 normals: vec![V(0.0, 0.0, 1.0); 4],
                 uvs: vec![[0.0; 2]; 4],
                 faces: vec![[0, 1, 2]],
+                morphs: Default::default(),
             }],
         };
         let (low, high) = mesh.bounds();
         assert_eq!((low.2, high.2), (950.0, 1150.0));
         assert_eq!(mesh.unused_vertices(), 1);
+    }
+
+    #[test]
+    fn posing_applies_face_average_then_weighted_morphs() {
+        let xmf = r#"<HEADER MAGIC="XMF" VERSION="919" />
+<MESH NUMSUBMESH="1">
+ <SUBMESH NUMVERTICES="3" NUMFACES="1" MATERIAL="0" NUMMORPHS="2">
+  <VERTEX ID="0"><POS>0 0 0</POS></VERTEX>
+  <VERTEX ID="1"><POS>10 0 0</POS></VERTEX>
+  <VERTEX ID="2"><POS>0 10 0</POS></VERTEX>
+  <MORPH NAME="Face.Average" NUMBLENDVERTS="1">
+   <BLENDVERTEX VERTEXID="2"><POSITION>0 20 0</POSITION></BLENDVERTEX>
+  </MORPH>
+  <MORPH NAME="mouth.Smile.Exclusive" NUMBLENDVERTS="1">
+   <BLENDVERTEX VERTEXID="0"><POSITION>0 0 4</POSITION></BLENDVERTEX>
+  </MORPH>
+  <FACE VERTEXID="0 1 2" />
+ </SUBMESH>
+</MESH>"#;
+        let mesh = StaticMesh::parse(xmf.as_bytes()).unwrap();
+        assert!(mesh.has_morph(FACE_AVERAGE));
+        assert_eq!(mesh.morph_count(), 2);
+        // As stored: the base mesh.
+        assert_eq!(mesh.posed(false, &[]).submeshes[0].positions[2].1, 10.0);
+        // As IMVU draws it: Face.Average, plus half the smile.
+        let shown = mesh.posed(true, &[("mouth.Smile.Exclusive".into(), 0.5)]);
+        assert_eq!(shown.submeshes[0].positions[2].1, 20.0);
+        assert_eq!(shown.submeshes[0].positions[0].2, 2.0);
+        assert!(shown.submeshes[0].morphs.is_empty());
     }
     use super::*;
 

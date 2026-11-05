@@ -1,9 +1,6 @@
 <div align="center">
-  <img src="assets/icon.svg" alt="IMVUWU logo" width="144" height="144">
+  <img src="assets/readme-banner.svg" alt="IMVUWU. Creator tools for IMVU. The Deliverance Flash tools, rebuilt in Rust." width="560">
 
-  <h1>IMVUWU</h1>
-
-  <p><strong>IMVU creator tools that recreate the original Deliverance Flash tools in Rust for modern systems.</strong></p>
   <p>Windows · Linux · macOS</p>
   <p>
     <a href="https://github.com/ilovealienz/IMVUWU/releases/latest"><strong>Download IMVUWU</strong></a> ·
@@ -11,6 +8,12 @@
     <a href="#build-from-source">Build from source</a>
   </p>
 </div>
+
+<p align="center">
+  <img src="assets/facemaker-preview.png" alt="IMVUWU FaceMaker showing a wide grin in the 3D expression preview, with facial controls on the left." width="85%">
+  <br>
+  <em>FaceMaker’s expression editor and 3D preview.</em>
+</p>
 
 ## Creator tools
 

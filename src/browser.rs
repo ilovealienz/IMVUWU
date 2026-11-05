@@ -93,7 +93,15 @@ enum PreviewContent {
     Note(String),
     /// A turnable preview of an XMF/CMF mesh.
     Mesh {
+        /// The mesh as stored, with its morph targets.
+        source: Arc<crate::mesh::StaticMesh>,
+        /// `source` posed as chosen below: what is drawn and exported.
         mesh: Arc<crate::mesh::StaticMesh>,
+        /// Apply Face.Average, as IMVU does (only offered when the mesh has it).
+        face_average: bool,
+        /// Expressions (.xpf/.cpf) in the package: name and morph weights.
+        expressions: Vec<(String, Vec<(String, f32)>)>,
+        expression: Option<usize>,
         images: Arc<BTreeMap<usize, image::RgbaImage>>,
         textured_materials: usize,
         yaw: f32,
@@ -101,6 +109,50 @@ enum PreviewContent {
         texture: Option<egui::TextureHandle>,
         rendered: Option<(f32, f32, [usize; 2])>,
     },
+}
+
+/// Expressions (.xpf/.cpf) in a package that load, each as its morph weights
+/// at its strongest key time (the pose a held expression shows).
+fn package_expressions(package: &Package) -> Vec<(String, Vec<(String, f32)>)> {
+    package
+        .files
+        .iter()
+        .filter(|f| {
+            let n = f.name.to_ascii_lowercase();
+            n.ends_with(".xpf") || n.ends_with(".cpf")
+        })
+        .filter_map(|f| {
+            let animation = crate::xpf::Animation::load(f.bytes.as_ref().ok()?).ok()?;
+            let weights_at = |time: f32| -> Vec<(String, f32)> {
+                animation
+                    .tracks
+                    .iter()
+                    .map(|t| (t.name.clone(), animation.weight(&t.name, time)))
+                    .collect()
+            };
+            let strength = |w: &[(String, f32)]| w.iter().map(|(_, v)| v.abs()).sum::<f32>();
+            let best = animation
+                .tracks
+                .iter()
+                .flat_map(|t| t.keys.iter().map(|k| k.time))
+                .map(weights_at)
+                .max_by(|a, b| strength(a).total_cmp(&strength(b)))?;
+            Some((f.name.clone(), best))
+        })
+        .collect()
+}
+
+/// `source` with Face.Average and the chosen expression applied.
+fn pose(
+    source: &crate::mesh::StaticMesh,
+    face_average: bool,
+    expressions: &[(String, Vec<(String, f32)>)],
+    expression: Option<usize>,
+) -> crate::mesh::StaticMesh {
+    let weights = expression
+        .and_then(|i| expressions.get(i))
+        .map_or(&[][..], |(_, w)| &w[..]);
+    source.posed(face_average, weights)
 }
 
 /// Is this file a Cal3D mesh (binary CMF or XMF text)?
@@ -1554,8 +1606,16 @@ impl Browser {
                                 .iter()
                                 .filter(|s| images.contains_key(&s.material))
                                 .count();
+                            let expressions = package_expressions(package);
+                            let expression = (!expressions.is_empty()).then_some(0);
+                            let source = Arc::new(mesh);
+                            let mesh = Arc::new(pose(&source, true, &expressions, expression));
                             PreviewContent::Mesh {
-                                mesh: Arc::new(mesh),
+                                source,
+                                mesh,
+                                face_average: true,
+                                expressions,
+                                expression,
                                 images: Arc::new(images),
                                 textured_materials,
                                 yaw: 0.0,
@@ -1703,7 +1763,11 @@ impl Browser {
         let Some(Preview {
             content:
                 PreviewContent::Mesh {
+                    source,
                     mesh,
+                    face_average,
+                    expressions,
+                    expression,
                     images,
                     textured_materials,
                     yaw,
@@ -1716,6 +1780,55 @@ impl Browser {
         else {
             return;
         };
+        let has_face_average = source.has_morph(crate::mesh::FACE_AVERAGE);
+        if has_face_average || !expressions.is_empty() {
+            let mut changed = false;
+            ui.horizontal_wrapped(|ui| {
+                if has_face_average {
+                    changed |= ui
+                        .checkbox(face_average, "Face.Average")
+                        .on_hover_text(
+                            "Draw the head with its Face.Average morph, as IMVU does. \
+                             Heads made from a template keep the creator's face shape \
+                             only in this morph; off shows the bare base mesh.",
+                        )
+                        .changed();
+                }
+                if !expressions.is_empty() {
+                    ui.label("Expression");
+                    let label = |e: Option<usize>| {
+                        e.and_then(|i| expressions.get(i))
+                            .map_or("None".to_string(), |(name, _)| display_name(name).to_string())
+                    };
+                    egui::ComboBox::from_id_salt("mesh-expression")
+                        .selected_text(label(*expression))
+                        .show_ui(ui, |ui| {
+                            for choice in std::iter::once(None).chain((0..expressions.len()).map(Some)) {
+                                changed |= ui
+                                    .selectable_value(expression, choice, label(choice))
+                                    .changed();
+                            }
+                        })
+                        .response
+                        .on_hover_text(
+                            "Apply an expression from this package to the head's morphs, \
+                             at its strongest point",
+                        );
+                }
+                ui.label(
+                    egui::RichText::new(format!(
+                        "{} morph(s) · drawn and exported as shown",
+                        source.morph_count()
+                    ))
+                    .small()
+                    .color(theme::MUTED),
+                );
+            });
+            if changed {
+                *mesh = Arc::new(pose(source, *face_average, expressions, *expression));
+                *rendered = None;
+            }
+        }
         let (low, high) = mesh.bounds();
         let unused = mesh.unused_vertices();
         ui.label(
@@ -1776,12 +1889,23 @@ impl Browser {
             return;
         };
         let Ok(bytes) = &file.bytes else { return };
-        let mesh = match crate::mesh::StaticMesh::parse(bytes) {
-            Ok(m) => m,
-            Err(e) => {
-                self.status = format!("Could not export: {e}");
-                return;
-            }
+        // The previewed pose when this file is the one shown, else as stored.
+        let shown = match &self.preview {
+            Some(Preview {
+                key,
+                content: PreviewContent::Mesh { mesh, .. },
+            }) if key.0 == index && key.1 == file_index => Some(mesh.clone()),
+            _ => None,
+        };
+        let mesh = match shown {
+            Some(m) => m,
+            None => match crate::mesh::StaticMesh::parse(bytes) {
+                Ok(m) => Arc::new(m),
+                Err(e) => {
+                    self.status = format!("Could not export: {e}");
+                    return;
+                }
+            },
         };
         let Some(parent) = rfd::FileDialog::new().pick_folder() else {
             return;

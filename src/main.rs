@@ -1046,9 +1046,10 @@ fn show_error(text: &str) {
         .show();
 }
 
-/// The window/taskbar icon (the exe file icon comes from build.rs).
+/// The window/taskbar icon: a 64 px copy of the logo made by
+/// tools/make-icon.ps1 (the exe file icon comes from build.rs).
 fn app_icon() -> eframe::egui::IconData {
-    let image = image::load_from_memory(include_bytes!("../assets/icon.png"))
+    let image = image::load_from_memory(include_bytes!("../assets/icon-window.png"))
         .expect("Bundled icon")
         .into_rgba8();
     let (width, height) = image.dimensions();

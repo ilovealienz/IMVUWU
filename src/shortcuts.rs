@@ -299,7 +299,20 @@ mod tests {
             let b = command.default_binding();
             assert_eq!(Binding::parse(&b.text()), Some(b));
         }
-        assert_eq!(Command::Redo.default_binding().text(), "Ctrl+Shift+Z");
+        // Shown as Cmd on macOS, Ctrl elsewhere; both spellings parse back.
+        let ctrl = if cfg!(target_os = "macos") {
+            "Cmd"
+        } else {
+            "Ctrl"
+        };
+        assert_eq!(
+            Command::Redo.default_binding().text(),
+            format!("{ctrl}+Shift+Z")
+        );
+        assert_eq!(
+            Binding::parse("Cmd+Shift+Z"),
+            Binding::parse("Ctrl+Shift+Z")
+        );
         assert_eq!(Binding::parse("ctrl + nonsense"), None);
         let undo = Command::Undo.default_binding();
         assert!(undo.matches(Key::Z, Modifiers::CTRL));
